@@ -1,0 +1,117 @@
+---
+title: "Unit1 Final Assignment Berries"
+author: "Hao Shen"
+date: "2020/10/17"
+output: 
+  revealjs::revealjs_presentation:
+    theme: blood
+    center: TRUE
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(knitr)
+berries=read.csv('Data/berries.csv')
+bearing=read.csv('Data/b_berry_bearing.csv')
+market=read.csv('Data/b_berry_market.csv')
+```
+
+# INTRODUCTION
+
+## Summary
+
+In this assignment, we do EAD for data set berries from USDA. After data cleaning and according to data set attributions, we divided the whole berries date set into two parts:
+
+* Bearing: contains information about farm chemical usage.
+* Market: with price, yield, area related information.
+
+Besides, we deploy a shiny app [Berries-shiny](https://haoshen.shinyapps.io/Berries-shiny/) for data display and the document recorded the whole processes is in [Berries-rmd](Berries-rmd.pdf).
+
+# DATA
+
+## Data Cleaning
+
+Main Problem: How to split strings?
+
+* Multiple variables contained in just one column
+* For example: 'CHEMICAL, FUNGICIDE: (CAPTAN=81301)'
+* Contains three parts of information: Domain, Category, Name
+
+Solution: Plug '#' as the separator into right places 
+
+```{r echo=T,eval=F}
+str_replace_all('CHEMICAL, FUNGICIDE: (CAPTAN=81301)',
+                pattern=c(', '='#',': '='#'))%>%
+  strsplit(split="#")
+```
+```{r}
+kable(data.frame(Domain='CHEMICAL    ',
+                 Category='FUNGICIDE    ',
+                 Name='(CAPTAN=81301)    '))
+```
+
+# DISPLAY OF RESULTS
+
+## PCA for bearing
+
+```{r fig.height=4}
+# load data
+bearing=read.csv('Data/b_berry_bearing.csv')
+bearing_value=filter(bearing,
+                     Year%in%c('2019','2015'),
+                     Unit=='LB',
+                     Category%in%c('(NITROGEN)','(PHOSPHATE)','(POTASH)',
+                                   '(SULFUR)','(TOTAL)')
+                     )
+# arrange data
+bearing_value$DC=paste(bearing_value$Domain,bearing_value$Category)
+bearing_value=arrange(bearing_value,bearing_value$Year,bearing_value$State,
+                      bearing_value$DC)
+# handle missing value
+for(i in unique(bearing_value$DC)){
+  m=bearing_value$Value[bearing_value$Value!=' (D)'
+                        &bearing_value$DC==i]%>%
+    str_replace_all(c(','=''))%>%
+    as.numeric()%>%
+    mean()
+  bearing_value$Value[bearing_value$Value==' (D)'
+                    &bearing_value$DC==i]=m
+
+}
+# transform to numeric
+bearing_value$Value=as.numeric(str_replace_all(bearing_value$Value,c(','='')))
+# transform for PCA
+j=1
+for(i in unique(bearing_value$DC)){
+  if(j==1)bearing_pca=bearing_value$Value[bearing_value$DC==i]
+  else bearing_pca=cbind(bearing_pca,bearing_value$Value[bearing_value$DC==i])
+  j=0
+}
+colnames(bearing_pca)=unique(bearing_value$DC)
+pca=prcomp(bearing_pca,center = T,scale. = T)
+ggbiplot::ggscreeplot(pca) 
+kable(data.frame(PC1=0.5676,PC2=0.7163,PC3=0.8472,PC4=0.9495,
+                 PC5=0.9835,PC6=0.9955,PC7=0.9983,PC8=1))
+```
+
+Just as the plot shows, it requires 4 out of 8 principal components
+
+## Equations for market
+
+For market data, we just found their relationships are extremely simple:
+
+* ACRE_HARVEST(ACRE)=PROD(LB)/YIELD(LB/ACRE)
+* M_PRICE_RECEIVED(\$/LB)=M_PROD(\$)/M_PROD(LB)
+* M_PROD(\$)=M_PRICE_RECEIVED(\$/LB)*M_PROD(LB)
+* M_PROD(LB)=M_PROD($)/M_PRICE_RECEIVED(\$/LB)
+* NS_PROD(LB)=PROD(LB)-UTILIZED_PROD(LB)
+* PRICE_RECEIVED(\$/LB)=U_PROD(\$)/U_PROD(LB)
+* P_PRICE_RECEIVED(\$/LB)=P_PROD(\$)/P_PROD(LB)
+* P_PROD(\$)=P_PRICE_RECEIVED(\$/LB)*P_PROD(LB)
+* P_PROD(LB)=P_PROD(\$)/P_PRICE_RECEIVED(\$/LB)
+* PROD(LB)=NS_PROD(LB)+U_PROD(LB)
+* U_PROD(\$)=PRICE_RECEIVED(\$/LB)*U_PROD(LB)
+
+
