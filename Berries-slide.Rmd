@@ -41,12 +41,12 @@ Main Problem: How to split strings?
 
 Solution: Plug '#' as the separator into right places 
 
-```{r echo=T,eval=F}
+```{r echo=F,eval=F}
 str_replace_all('CHEMICAL, FUNGICIDE: (CAPTAN=81301)',
                 pattern=c(', '='#',': '='#'))%>%
   strsplit(split="#")
 ```
-```{r}
+```{r eval=F, include=T}
 kable(data.frame(Domain='CHEMICAL    ',
                  Category='FUNGICIDE    ',
                  Name='(CAPTAN=81301)    '))
