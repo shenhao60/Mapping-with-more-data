@@ -75,7 +75,7 @@ server <- function(input,output) {
     })
     # Obtain hurricane track
     H_track=reactive({
-        validate(need(H_name() != "", "Please wait."))
+    #    validate(need(H_name() != "", "Please wait."))
         H_track=hurr_tracks%>%
             filter(storm_id==H_name())
         H_track$DT=ymd_hm(H_track$date)
